@@ -2,7 +2,8 @@
 // API 层：HTTP 请求 + localStorage 数据管理
 // ============================================================
 
-const API_BASE = '/api';
+// CloudBase 云函数 HTTP 端点（部署后需在云控制台开启 HTTP 触发器）
+const API_BASE = 'https://cloudbase-d1gdu6ytq7d7d768b.service.tcloudbase.com/api';
 
 // ---- HTTP 请求 ----
 

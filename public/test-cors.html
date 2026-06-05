@@ -1,0 +1,14 @@
+<!DOCTYPE html><html><body>
+<pre id="out">Testing CORS...</pre>
+<script>
+fetch('https://api.deepseek.com/chat/completions', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer sk-2a1387cba2a9470ab67bfc5a8b5271e0' },
+  body: JSON.stringify({ model: 'deepseek-chat', messages: [{role:'user',content:'hi'}], max_tokens: 10 })
+}).then(r => r.json()).then(d => {
+  document.getElementById('out').textContent = 'CORS OK: ' + JSON.stringify(d);
+}).catch(e => {
+  document.getElementById('out').textContent = 'CORS FAILED: ' + e.message;
+});
+</script>
+</body></html>
