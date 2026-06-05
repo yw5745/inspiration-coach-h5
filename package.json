@@ -1,0 +1,15 @@
+{
+  "name": "inspiration-coach-h5",
+  "version": "1.0.0",
+  "description": "灵感教练 H5 网页版 — AI 苏格拉底式对话生成短视频文案",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "keywords": ["ai", "video-script", "deepseek"],
+  "license": "MIT"
+}

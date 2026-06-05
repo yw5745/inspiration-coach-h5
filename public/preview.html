@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>文案预览 · 灵感教练</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .container { padding-bottom: 40px; }
+  .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 0; }
+  .loading-text { font-size: 14px; color: var(--text-secondary); margin-top: 14px; }
+  .script-content { padding: 20px; margin-bottom: 20px; }
+  .script-text { font-size: 15px; line-height: 1.9; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  .actions { display: flex; flex-direction: column; gap: 12px; }
+  .action-btn { width: 100%; padding: 12px; font-size: 15px; border-radius: 24px; }
+</style>
+</head>
+<body>
+
+<div class="nav-bar">
+  <button class="nav-back" onclick="history.back()">←</button>
+  文案预览
+</div>
+
+<div class="container">
+  <div id="loadingView" class="loading-container">
+    <div class="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    <span class="loading-text">教练正在为你生成文案...</span>
+  </div>
+
+  <div id="contentView" style="display:none">
+    <div class="script-content card">
+      <span class="script-text" id="scriptText"></span>
+    </div>
+    <div class="actions">
+      <button class="btn-outline action-btn" id="copyBtn">📋 复制文案</button>
+      <button class="btn-primary action-btn" id="saveBtn">💾 保存到文案库</button>
+      <button class="btn-outline action-btn" onclick="history.back()">💬 继续碰撞</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/constants.js"></script>
+<script src="js/app.js"></script>
+<script src="js/api.js"></script>
+<script src="js/dialogue-engine.js"></script>
+<script>
+var dialogueId = App.getParam('dialogueId');
+var scriptId = App.getParam('scriptId');
+var messages = App.getParam('messages') || [];
+var scriptContent = '';
+var saved = false;
+
+var loadingView = document.getElementById('loadingView');
+var contentView = document.getElementById('contentView');
+var scriptText = document.getElementById('scriptText');
+var saveBtn = document.getElementById('saveBtn');
+
+// ---- 路由：文案库查看 / 对话生成 ----
+if (scriptId) {
+  // 从文案库查看已保存的文案
+  var script = getScript(scriptId);
+  if (script) {
+    scriptContent = script.content;
+    saved = true;
+    saveBtn.textContent = '✅ 已保存';
+    saveBtn.disabled = true;
+    dialogueId = script.dialogueId;
+    showScript(script.content);
+  } else {
+    loadingView.innerHTML = '<p style="color:var(--error);text-align:center;">文案不存在</p>';
+  }
+} else if (dialogueId) {
+  // 从对话生成
+  if (messages.length === 0) {
+    messages = getMessages(dialogueId);
+  }
+
+  // 检查是否已有生成过的文案
+  var existingScript = null;
+  for (var i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'assistant' && messages[i].phase === 'generate') {
+      existingScript = messages[i].content;
+      break;
+    }
+  }
+
+  if (existingScript) {
+    showScript(existingScript);
+  } else {
+    generateNewScript();
+  }
+}
+
+function showScript(content) {
+  scriptContent = content;
+  loadingView.style.display = 'none';
+  contentView.style.display = 'block';
+  scriptText.textContent = content;
+}
+
+function generateNewScript() {
+  var genMessages = buildGenerateMessages(messages);
+
+  callGenerateAPI(genMessages).then(function(data) {
+    scriptContent = data.content;
+    // 保存为 generate 阶段消息
+    if (dialogueId) {
+      saveMessage(dialogueId, { role: 'assistant', content: data.content, phase: 'generate' });
+      updateDialogue(dialogueId, { phase: 'generate' });
+    }
+    showScript(data.content);
+  }).catch(function(err) {
+    loadingView.innerHTML = '<p style="color:var(--error);text-align:center;">生成失败，请稍后再试</p>';
+  });
+}
+
+// ---- 复制 ----
+document.getElementById('copyBtn').addEventListener('click', function() {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(scriptContent).then(function() {
+      App.showToast('已复制', 'success');
+    }).catch(function() {
+      fallbackCopy();
+    });
+  } else {
+    fallbackCopy();
+  }
+});
+
+function fallbackCopy() {
+  var ta = document.createElement('textarea');
+  ta.value = scriptContent;
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); App.showToast('已复制', 'success'); } catch(e) { App.showToast('复制失败', 'error'); }
+  document.body.removeChild(ta);
+}
+
+// ---- 保存 ----
+document.getElementById('saveBtn').addEventListener('click', function() {
+  if (saved) return;
+
+  var title = extractTitle(scriptContent);
+  var hashtags = extractHashtags(scriptContent);
+
+  saveScriptLocal({
+    title: title,
+    content: scriptContent,
+    hashtags: hashtags,
+    dialogueId: dialogueId
+  });
+
+  saved = true;
+  var btn = document.getElementById('saveBtn');
+  btn.textContent = '✅ 已保存';
+  btn.disabled = true;
+  App.showToast('已保存', 'success');
+});
+
+function extractTitle(content) {
+  if (!content) return '未命名文案';
+  var lines = content.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].replace(/🎣|📖|🎯|🏷️|📝|【.*?】/g, '').trim();
+    if (line.length > 2) return line.substring(0, 50);
+  }
+  return '未命名文案';
+}
+
+function extractHashtags(content) {
+  var match = content.match(/#[^\s#]+/g);
+  return match || [];
+}
+</script>
+</body>
+</html>

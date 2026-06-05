@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>对话 · 灵感教练</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .dialogue-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg); }
+  .phase-header { flex-shrink: 0; background: var(--bg); z-index: 10; padding-top: 4px; }
+  .message-list { flex: 1; overflow-y: auto; padding: 8px 0 16px; -webkit-overflow-scrolling: touch; }
+  .thinking-row { padding: 8px 16px; display: flex; align-items: center; }
+  .generate-section { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  .generate-btn { padding: 12px 40px; font-size: 16px; margin-bottom: 8px; }
+  .generate-hint { font-size: 12px; color: var(--text-muted); }
+  .input-bar { display: flex; align-items: center; padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); background: #fff; border-top: 1px solid #f0f0f0; gap: 8px; flex-shrink: 0; }
+  .input-wrapper { flex: 1; background: var(--bg); border-radius: 24px; padding: 8px 14px; }
+  .msg-input { width: 100%; font-size: 14px; line-height: 1.5; border: none; outline: none; background: transparent; font-family: inherit; }
+  .send-btn { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-light)); display: flex; align-items: center; justify-content: center; padding: 0; border: none; color: #fff; font-size: 18px; font-weight: 700; flex-shrink: 0; cursor: pointer; }
+  .send-btn:disabled { background: #dfe6e9; cursor: not-allowed; }
+  /* 空对话 */
+  .empty-dialogue { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 32px; text-align: center; color: var(--text-muted); }
+  .empty-dialogue .empty-icon { font-size: 48px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="dialogue-page">
+  <!-- 阶段指示器 -->
+  <div class="phase-header" id="phaseHeader"></div>
+
+  <!-- 消息列表 -->
+  <div class="message-list" id="messageList">
+    <div id="messageContainer"></div>
+    <div id="thinkingRow" class="thinking-row" style="display:none">
+      <div class="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    </div>
+    <div id="generateSection" class="generate-section" style="display:none">
+      <button class="btn-primary generate-btn" id="generateBtn">✨ 生成文案</button>
+      <span class="generate-hint">对话已经足够深入，可以生成文案了</span>
+    </div>
+  </div>
+
+  <!-- 输入栏 -->
+  <div class="input-bar">
+    <div class="input-wrapper">
+      <input class="msg-input" id="msgInput" placeholder="继续你的想法..." autocomplete="off" />
+    </div>
+    <button class="send-btn" id="sendBtn" disabled>↑</button>
+  </div>
+</div>
+
+<script src="js/constants.js"></script>
+<script src="js/app.js"></script>
+<script src="js/api.js"></script>
+<script src="js/dialogue-engine.js"></script>
+<script>
+// ---- 状态 ----
+var dialogueId = App.getParam('dialogueId');
+var messages = [];
+var currentPhase = App.getParam('phase') || 'explore';
+var loading = false;
+
+// ---- 元素 ----
+var phaseHeader = document.getElementById('phaseHeader');
+var messageContainer = document.getElementById('messageContainer');
+var messageList = document.getElementById('messageList');
+var thinkingRow = document.getElementById('thinkingRow');
+var generateSection = document.getElementById('generateSection');
+var msgInput = document.getElementById('msgInput');
+var sendBtn = document.getElementById('sendBtn');
+
+// ---- 初始化 ----
+if (!dialogueId) {
+  messageContainer.innerHTML = '<div class="empty-dialogue"><div class="empty-icon">💡</div><p>还没有对话，去首页开始吧</p></div>';
+  msgInput.disabled = true;
+} else {
+  loadMessages();
+}
+
+renderPhaseIndicator();
+renderGenerateBtn();
+
+// ---- 渲染阶段指示器 ----
+function renderPhaseIndicator() {
+  var phaseOrder = ['explore', 'challenge', 'structure', 'generate'];
+  var idx = phaseOrder.indexOf(currentPhase);
+  var html = '<div class="phase-bar"><div class="phase-steps">';
+  phaseOrder.forEach(function(key, i) {
+    var ph = PHASES[key];
+    var cls = '';
+    if (key === currentPhase) cls = 'active';
+    else if (i < idx) cls = 'completed';
+    var dot = i < idx ? '✓' : ph.icon;
+    html += '<div class="step ' + cls + '"><div class="step-dot"><span>' + dot + '</span></div>';
+    html += '<span class="step-label">' + ph.label + '</span></div>';
+  });
+  html += '</div></div>';
+  phaseHeader.innerHTML = html;
+}
+
+// ---- 渲染生成按钮 ----
+function renderGenerateBtn() {
+  generateSection.style.display = (currentPhase === 'structure' || currentPhase === 'generate') ? 'flex' : 'none';
+}
+
+// ---- 加载消息 ----
+function loadMessages() {
+  messages = getMessages(dialogueId);
+
+  if (messages.length === 0) {
+    // 从 localStorage 加载对话信息
+    var dialogue = getDialogue(dialogueId);
+    if (dialogue) {
+      currentPhase = dialogue.phase || 'explore';
+      renderPhaseIndicator();
+      renderGenerateBtn();
+    }
+  }
+
+  messageContainer.innerHTML = '';
+  messages.forEach(function(msg, i) {
+    messageContainer.appendChild(createBubble(msg.role, msg.content));
+  });
+
+  scrollToBottom();
+}
+
+// ---- 创建聊天气泡 ----
+function createBubble(role, content) {
+  var wrapper = document.createElement('div');
+  wrapper.className = 'bubble-wrapper ' + (role === 'user' ? 'user' : 'ai');
+
+  var avatar = document.createElement('div');
+  avatar.className = 'bubble-avatar';
+  avatar.textContent = role === 'user' ? '👤' : '🧠';
+
+  var bubble = document.createElement('div');
+  bubble.className = 'bubble ' + (role === 'user' ? 'bubble-user' : 'bubble-ai');
+  bubble.textContent = content;
+
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(bubble);
+  return wrapper;
+}
+
+// ---- 滚动到底部 ----
+function scrollToBottom() {
+  setTimeout(function() {
+    messageList.scrollTop = messageList.scrollHeight;
+  }, 50);
+}
+
+// ---- 输入监听 ----
+msgInput.addEventListener('input', function() {
+  sendBtn.disabled = this.value.trim().length === 0 || loading;
+});
+
+msgInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ---- 发送消息 ----
+sendBtn.addEventListener('click', sendMessage);
+
+function sendMessage() {
+  var content = msgInput.value.trim();
+  if (!content || loading) return;
+
+  // 添加用户气泡
+  messageContainer.appendChild(createBubble('user', content));
+  messages.push({ role: 'user', content: content });
+  saveMessage(dialogueId, { role: 'user', content: content, phase: currentPhase });
+
+  msgInput.value = '';
+  sendBtn.disabled = true;
+  loading = true;
+  thinkingRow.style.display = 'flex';
+  generateSection.style.display = 'none';
+  scrollToBottom();
+
+  // 构建 chat messages
+  var chatMessages = buildChatMessages(currentPhase, messages);
+  var turnCount = messages.filter(function(m) { return m.role === 'user'; }).length;
+
+  callChatAPI(chatMessages).then(function(data) {
+    thinkingRow.style.display = 'none';
+
+    // 解析阶段转换
+    var parsed = parsePhaseTransition(data.content);
+    var content = parsed.cleanContent;
+    var nextPhase = parsed.nextPhase;
+
+    // 强制阶段推进
+    if (!nextPhase) {
+      nextPhase = forcePhaseByTurns(currentPhase, turnCount);
+    }
+
+    if (nextPhase) {
+      currentPhase = nextPhase;
+      renderPhaseIndicator();
+      // 更新 dialogue 记录
+      updateDialogue(dialogueId, { phase: nextPhase, turnCount: turnCount });
+    } else {
+      updateDialogue(dialogueId, { turnCount: turnCount });
+    }
+
+    // 添加 AI 气泡
+    messageContainer.appendChild(createBubble('assistant', content));
+    messages.push({ role: 'assistant', content: content, phase: currentPhase });
+    saveMessage(dialogueId, { role: 'assistant', content: content, phase: currentPhase });
+
+    loading = false;
+    renderGenerateBtn();
+    scrollToBottom();
+
+    // 自动跳转预览
+    if (nextPhase === 'generate') {
+      generateSection.style.display = 'none';
+      setTimeout(function() { navigateToPreview(); }, 300);
+    }
+  }).catch(function(err) {
+    thinkingRow.style.display = 'none';
+    loading = false;
+    renderGenerateBtn();
+    App.showToast('发送失败，请稍后再试', 'error');
+  });
+}
+
+// ---- 生成文案 ----
+document.getElementById('generateBtn').addEventListener('click', navigateToPreview);
+
+function navigateToPreview() {
+  App.setParam('dialogueId', dialogueId);
+  App.setParam('messages', messages);
+  window.location.href = 'preview.html';
+}
+
+// ---- 初始滚动 ----
+scrollToBottom();
+</script>
+</body>
+</html>

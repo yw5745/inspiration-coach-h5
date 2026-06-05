@@ -1,0 +1,16 @@
+{
+  "envId": "cloudbase-d1gdu6ytq7d7d768b",
+  "version": "2.0",
+  "framework": {
+    "name": "inspiration-coach-h5",
+    "plugins": {
+      "client": {
+        "use": "@cloudbase/framework-plugin-website",
+        "inputs": {
+          "outputPath": "./public",
+          "cloudPath": "/"
+        }
+      }
+    }
+  }
+}

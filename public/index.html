@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>灵感教练</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .hero-section { text-align: center; padding: 32px 0 24px; }
+  .hero-title { display: block; font-size: 28px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .hero-subtitle { font-size: 14px; color: var(--text-secondary); }
+  .input-section { padding: 14px; }
+  .idea-input { width: 100%; min-height: 100px; font-size: 15px; line-height: 1.7; color: var(--text); border: none; outline: none; resize: none; font-family: inherit; background: transparent; }
+  .idea-input::placeholder { color: var(--text-muted); font-size: 14px; }
+  .input-footer { display: flex; justify-content: flex-end; }
+  .char-count { font-size: 12px; color: var(--text-muted); }
+  .start-btn { width: 100%; margin: 16px 0; padding: 14px; font-size: 17px; }
+  .section-title { font-size: 15px; font-weight: 600; color: var(--text); display: block; margin: 24px 0 12px; }
+  .template-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .template-card { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); cursor: pointer; }
+  .template-card:active { background: #f8f8ff; }
+  .template-emoji { font-size: 24px; display: block; margin-bottom: 4px; }
+  .template-hd { font-size: 14px; font-weight: 600; display: block; margin-bottom: 3px; }
+  .template-hint { font-size: 11px; color: var(--text-muted); display: block; }
+  .recent-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; }
+  .recent-item:active { background: #f8f8ff; }
+  .recent-info { flex: 1; min-width: 0; }
+  .recent-idea { font-size: 14px; display: block; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .recent-meta { font-size: 12px; color: var(--text-muted); }
+  .recent-arrow { font-size: 16px; color: var(--text-muted); margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 顶部标题 -->
+  <div class="hero-section">
+    <span class="hero-title">💡 灵感教练</span>
+    <span class="hero-subtitle">把你的碎片想法，变成一条爆款短视频文案</span>
+  </div>
+
+  <!-- 灵感输入 -->
+  <div class="input-section card">
+    <textarea
+      class="idea-input"
+      id="ideaInput"
+      placeholder="今天想创作什么内容？&#10;&#10;比如：我想聊聊35岁职场危机..."
+      maxlength="500"
+    ></textarea>
+    <div class="input-footer">
+      <span class="char-count" id="charCount">0/500</span>
+    </div>
+  </div>
+
+  <!-- 开始按钮 -->
+  <button class="btn-primary start-btn" id="startBtn" disabled>开始对话碰撞</button>
+
+  <!-- 灵感模板 -->
+  <span class="section-title">💡 不知道写什么？试试这些</span>
+  <div class="template-grid" id="templateGrid"></div>
+
+  <!-- 最近的对话 -->
+  <span class="section-title" id="recentTitle" style="display:none">📝 最近的对话</span>
+  <div id="recentList"></div>
+</div>
+
+<!-- 底部 Tab 栏 -->
+<div class="tab-bar">
+  <a class="tab-item active" href="index.html">
+    <span class="tab-icon">💡</span>灵感
+  </a>
+  <a class="tab-item" href="library.html">
+    <span class="tab-icon">📝</span>文案库
+  </a>
+  <a class="tab-item" href="profile.html">
+    <span class="tab-icon">👤</span>我的
+  </a>
+</div>
+
+<script src="js/constants.js"></script>
+<script src="js/app.js"></script>
+<script src="js/api.js"></script>
+<script>
+// ---- 元素 ----
+const ideaInput = document.getElementById('ideaInput');
+const charCount = document.getElementById('charCount');
+const startBtn = document.getElementById('startBtn');
+const templateGrid = document.getElementById('templateGrid');
+const recentTitle = document.getElementById('recentTitle');
+const recentList = document.getElementById('recentList');
+
+// ---- 输入监听 ----
+ideaInput.addEventListener('input', function() {
+  const len = this.value.length;
+  charCount.textContent = len + '/500';
+  startBtn.disabled = this.value.trim().length === 0;
+});
+
+// ---- 模板渲染 ----
+IDEA_TEMPLATES.forEach(function(tmpl) {
+  const card = document.createElement('div');
+  card.className = 'template-card';
+  card.innerHTML = '<span class="template-emoji">' + tmpl.emoji + '</span>' +
+    '<span class="template-hd">' + tmpl.title + '</span>' +
+    '<span class="template-hint">' + tmpl.hint + '</span>';
+  card.addEventListener('click', function() {
+    ideaInput.value = tmpl.hint;
+    charCount.textContent = tmpl.hint.length + '/500';
+    startBtn.disabled = false;
+  });
+  templateGrid.appendChild(card);
+});
+
+// ---- 开始对话 ----
+startBtn.addEventListener('click', function() {
+  const idea = ideaInput.value.trim();
+  if (!idea) return;
+  startBtn.textContent = '教练正在思考...';
+  startBtn.disabled = true;
+
+  // 创建对话（本地存储）
+  const dialogue = createDialogueLocal(idea);
+
+  // 构建首轮消息并调 AI
+  const messages = buildChatMessages('explore', [
+    { role: 'user', content: '我的创作灵感：' + idea + '\n请引导我完善这个想法。' }
+  ]);
+
+  callChatAPI(messages).then(function(data) {
+    // 保存 AI 回复
+    saveMessage(dialogue.id, { role: 'user', content: idea, phase: 'explore' });
+    saveMessage(dialogue.id, { role: 'assistant', content: data.content, phase: 'explore' });
+
+    // 跳转到对话页
+    App.setParam('dialogueId', dialogue.id);
+    App.setParam('phase', 'explore');
+    window.location.href = 'dialogue.html';
+  }).catch(function(err) {
+    startBtn.textContent = '开始对话碰撞';
+    startBtn.disabled = false;
+    App.showToast('连接失败，请稍后再试', 'error');
+  });
+});
+
+// ---- 加载最近对话 ----
+(function loadRecent() {
+  const result = listDialogues(1, 5);
+  if (result.dialogues.length === 0) return;
+
+  recentTitle.style.display = 'block';
+
+  result.dialogues.forEach(function(d) {
+    const phaseLabel = (PHASES[d.phase] && PHASES[d.phase].label) || d.phase;
+    const item = document.createElement('div');
+    item.className = 'recent-item card';
+    item.innerHTML = '<div class="recent-info">' +
+      '<span class="recent-idea">' + escapeHtml(d.seedIdea) + '</span>' +
+      '<span class="recent-meta">' + phaseLabel + ' · ' + d.turnCount + '轮对话</span>' +
+      '</div><span class="recent-arrow">→</span>';
+    item.addEventListener('click', function() {
+      App.setParam('dialogueId', d.id);
+      window.location.href = 'dialogue.html';
+    });
+    recentList.appendChild(item);
+  });
+})();
+
+// 工具：HTML 转义
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>我的 · 灵感教练</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .container { padding-bottom: 80px; }
+  .profile-header { display: flex; align-items: center; padding: 20px; margin-bottom: 14px; }
+  .avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-light)); display: flex; align-items: center; justify-content: center; margin-right: 16px; }
+  .avatar-emoji { font-size: 28px; }
+  .nickname { font-size: 18px; font-weight: 600; }
+  .stats-row { display: flex; gap: 8px; margin-bottom: 24px; }
+  .stat-card { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  .stat-number { font-size: 28px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+  .stat-label { font-size: 13px; color: var(--text-secondary); }
+  .feature-section { margin-bottom: 24px; }
+  .section-title { font-size: 15px; font-weight: 600; display: block; margin-bottom: 12px; }
+  .feature-list { display: flex; flex-direction: column; gap: 8px; }
+  .feature-item { display: flex; align-items: flex-start; gap: 12px; }
+  .feature-num { width: 26px; height: 26px; border-radius: 50%; background: rgba(108, 92, 231, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .ft-title { font-size: 14px; font-weight: 600; display: block; margin-bottom: 3px; }
+  .ft-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+  .about-card { padding: 16px; }
+  .about-text { display: block; font-size: 13px; line-height: 2; }
+</style>
+</head>
+<body>
+
+<div class="nav-bar">👤 我的</div>
+
+<div class="container">
+  <div class="profile-header card">
+    <div class="avatar"><span class="avatar-emoji">🧠</span></div>
+    <span class="nickname">灵感教练用户</span>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card card">
+      <span class="stat-number" id="statDialogues">0</span>
+      <span class="stat-label">总对话</span>
+    </div>
+    <div class="stat-card card">
+      <span class="stat-number" id="statScripts">0</span>
+      <span class="stat-label">总文案</span>
+    </div>
+  </div>
+
+  <div class="feature-section">
+    <span class="section-title">💡 使用技巧</span>
+    <div class="feature-list">
+      <div class="feature-item card">
+        <span class="feature-num">1</span>
+        <div>
+          <span class="ft-title">输入越具体，碰撞越深入</span>
+          <span class="ft-desc">不要只说"我想做职场内容"，试试"我想聊聊35岁被裁员后转行的真实感受"</span>
+        </div>
+      </div>
+      <div class="feature-item card">
+        <span class="feature-num">2</span>
+        <div>
+          <span class="ft-title">回答教练的每个问题</span>
+          <span class="ft-desc">教练的提问是帮你挖掘独特视角的，跳过的越多，生成的文案越平庸</span>
+        </div>
+      </div>
+      <div class="feature-item card">
+        <span class="feature-num">3</span>
+        <div>
+          <span class="ft-title">不满意就继续碰撞</span>
+          <span class="ft-desc">生成文案后可以回到对话继续调整，直到满意为止</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="about-section">
+    <span class="section-title">ℹ️ 关于</span>
+    <div class="card about-card">
+      <span class="about-text">灵感教练 v1.0</span>
+      <span class="about-text text-muted">Powered by DeepSeek AI</span>
+      <span class="about-text text-muted">让每个碎片灵感，都能变成一条好内容</span>
+    </div>
+  </div>
+</div>
+
+<!-- 底部 Tab 栏 -->
+<div class="tab-bar">
+  <a class="tab-item" href="index.html">
+    <span class="tab-icon">💡</span>灵感
+  </a>
+  <a class="tab-item" href="library.html">
+    <span class="tab-icon">📝</span>文案库
+  </a>
+  <a class="tab-item active" href="profile.html">
+    <span class="tab-icon">👤</span>我的
+  </a>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+var stats = getUserStatsLocal();
+document.getElementById('statDialogues').textContent = stats.totalDialogues;
+document.getElementById('statScripts').textContent = stats.totalScripts;
+</script>
+</body>
+</html>
