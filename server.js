@@ -14,13 +14,13 @@ const DEEPSEEK_API_KEY = 'sk-2a1387cba2a9470ab67bfc5a8b5271e0';
 
 // ---- 中间件 ----
 app.use(express.json({ limit: '50kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'docs')));
 
 // ---- 路由 ----
 
 // 首页
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'docs', 'index.html'));
 });
 
 // DeepSeek 对话代理
