@@ -1,32 +1,31 @@
 // ============================================================
-// API 层：HTTP 请求 + localStorage 数据管理
+// API 层：CloudBase SDK 直连云函数 + localStorage 数据管理
+// 需要页面先加载：<script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.0/cloudbase.full.js"></script>
 // ============================================================
 
-// API 基础路径（同域部署，Vercel/Netlify 自动路由到 serverless functions）
-const API_BASE = '/api';
+var cbApp = cloudbase.init({ env: 'cloudbase-d1gdu6ytq7d7d768b' });
+var cbAuthed = false;
 
-// ---- HTTP 请求 ----
+async function ensureAuth() {
+  if (cbAuthed) return;
+  await cbApp.auth({ persistence: 'local' }).anonymousAuthProvider().signIn();
+  cbAuthed = true;
+}
+
+// ---- CloudBase SDK 调用 ----
 
 async function callChatAPI(messages) {
-  const res = await fetch(API_BASE + '/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+  await ensureAuth();
+  var res = await cbApp.callFunction({ name: 'api', data: { action: 'chat', messages: messages } });
+  if (res.result && res.result.error) throw new Error(res.result.error);
+  return res.result;
 }
 
 async function callGenerateAPI(messages) {
-  const res = await fetch(API_BASE + '/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+  await ensureAuth();
+  var res = await cbApp.callFunction({ name: 'api', data: { action: 'generate', messages: messages } });
+  if (res.result && res.result.error) throw new Error(res.result.error);
+  return res.result;
 }
 
 // ---- localStorage 数据管理 ----

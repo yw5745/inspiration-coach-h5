@@ -10,6 +10,24 @@
   "dependencies": {
     "express": "^4.18.2"
   },
-  "keywords": ["ai", "video-script", "deepseek"],
-  "license": "MIT"
+  "keywords": [
+    "ai",
+    "video-script",
+    "deepseek"
+  ],
+  "license": "MIT",
+  "directories": {
+    "doc": "docs"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yw5745/inspiration-coach-h5.git"
+  },
+  "author": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/yw5745/inspiration-coach-h5/issues"
+  },
+  "homepage": "https://github.com/yw5745/inspiration-coach-h5#readme"
 }
