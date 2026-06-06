@@ -8,10 +8,10 @@
 var API_BASE = 'https://cloudbase-d1gdu6ytq7d7d768b-1439505511.ap-shanghai.app.tcloudbase.com/api';
 
 async function callChatAPI(messages) {
-  var res = await fetch(API_BASE + '/chat', {
+  var res = await fetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: messages })
+    body: JSON.stringify({ action: 'chat', messages: messages })
   });
   var data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -19,10 +19,10 @@ async function callChatAPI(messages) {
 }
 
 async function callGenerateAPI(messages) {
-  var res = await fetch(API_BASE + '/generate', {
+  var res = await fetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: messages })
+    body: JSON.stringify({ action: 'generate', messages: messages })
   });
   var data = await res.json();
   if (data.error) throw new Error(data.error);
