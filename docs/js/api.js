@@ -5,13 +5,13 @@
 
 // CloudBase HTTP 触发器地址
 // 格式: https://<环境ID>.service.tcloudbase.com/<函数名>
-var API_BASE = 'https://cloudbase-d1gdu6ytq7d7d768b.service.tcloudbase.com/api';
+var API_BASE = 'https://h5-tawny.vercel.app/api';
 
 async function callChatAPI(messages) {
-  var res = await fetch(API_BASE, {
+  var res = await fetch(API_BASE + '/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'chat', messages: messages })
+    body: JSON.stringify({ messages: messages })
   });
   var data = await res.json();
   if (data.error) throw new Error(data.error);
