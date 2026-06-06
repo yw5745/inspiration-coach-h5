@@ -187,11 +187,11 @@ function sendMessage() {
   generateSection.style.display = 'none';
   scrollToBottom();
 
-  // 构建 chat messages
+  // 构建 chat messages（限300tokens，确保3s内返回）
   var chatMessages = buildChatMessages(currentPhase, messages);
   var turnCount = messages.filter(function(m) { return m.role === 'user'; }).length;
 
-  callChatAPI(chatMessages).then(function(data) {
+  callChatAPI(chatMessages, 300).then(function(data) {
     thinkingRow.style.display = 'none';
 
     // 解析阶段转换

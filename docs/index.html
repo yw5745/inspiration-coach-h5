@@ -127,7 +127,7 @@ startBtn.addEventListener('click', function() {
     { role: 'user', content: '我的创作灵感：' + idea + '\n请引导我完善这个想法。' }
   ]);
 
-  callChatAPI(messages).then(function(data) {
+  callChatAPI(messages, 300).then(function(data) {
     // 保存 AI 回复
     saveMessage(dialogue.id, { role: 'user', content: idea, phase: 'explore' });
     saveMessage(dialogue.id, { role: 'assistant', content: data.content, phase: 'explore' });
