@@ -2,5 +2,6 @@
   "functions": {
     "api/chat.js": { "maxDuration": 60 },
     "api/generate.js": { "maxDuration": 60 }
-  }
+  },
+  "protection": false
 }

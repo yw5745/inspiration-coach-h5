@@ -7,29 +7,36 @@
 // 格式: https://<环境ID>.service.tcloudbase.com/<函数名>
 var API_BASE = 'https://cloudbase-d1gdu6ytq7d7d768b-1439505511.ap-shanghai.app.tcloudbase.com/api';
 
-async function callChatAPI(messages) {
-  var res = await fetch(API_BASE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'chat', messages: messages })
-  });
-  var data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+async function callChatAPI(messages, maxTokens) {
+  var body = { action: 'chat', messages: messages };
+  if (maxTokens) body.maxTokens = maxTokens;
+
+  // 客户端 50 秒超时，给出明确错误提示
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 50000);
+
+  try {
+    var res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error('服务器错误 ' + res.status);
+    var data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') throw new Error('请求超时，文案生成较耗时，请重试');
+    throw err;
+  }
 }
 
 async function callGenerateAPI(messages) {
-  // 用 chat action 代替 generate，避免 4000 tokens 导致 CloudBase 网关超时
-  // chat action 的 max_tokens=2000，对短视频文案已足够（约1500字）
-  var res = await fetch(API_BASE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'chat', messages: messages })
-  });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  var data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+  // 限制 token 数，确保 15 秒内返回（CloudBase 网关超时限制）
+  return callChatAPI(messages, 800);
 }
 
 // ---- localStorage 数据管理 ----
