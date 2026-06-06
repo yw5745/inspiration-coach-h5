@@ -100,18 +100,21 @@ function showScript(content) {
 }
 
 function generateNewScript() {
+  console.log('[DEBUG] generateNewScript called, messages count:', messages.length);
   var genMessages = buildGenerateMessages(messages);
+  console.log('[DEBUG] genMessages built, system+user messages:', genMessages.length);
 
   callGenerateAPI(genMessages).then(function(data) {
+    console.log('[DEBUG] callGenerateAPI success, content length:', data.content ? data.content.length : 0);
     scriptContent = data.content;
-    // 保存为 generate 阶段消息
     if (dialogueId) {
       saveMessage(dialogueId, { role: 'assistant', content: data.content, phase: 'generate' });
       updateDialogue(dialogueId, { phase: 'generate' });
     }
     showScript(data.content);
   }).catch(function(err) {
-    loadingView.innerHTML = '<p style="color:var(--error);text-align:center;">生成失败，请稍后再试</p>';
+    console.error('[DEBUG] callGenerateAPI error:', err.message || err, err);
+    loadingView.innerHTML = '<p style="color:var(--error);text-align:center;">生成失败: ' + (err.message || err) + '</p>';
   });
 }
 

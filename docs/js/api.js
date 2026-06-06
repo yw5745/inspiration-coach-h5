@@ -19,11 +19,14 @@ async function callChatAPI(messages) {
 }
 
 async function callGenerateAPI(messages) {
+  // 用 chat action 代替 generate，避免 4000 tokens 导致 CloudBase 网关超时
+  // chat action 的 max_tokens=2000，对短视频文案已足够（约1500字）
   var res = await fetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'generate', messages: messages })
+    body: JSON.stringify({ action: 'chat', messages: messages })
   });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   var data = await res.json();
   if (data.error) throw new Error(data.error);
   return data;
