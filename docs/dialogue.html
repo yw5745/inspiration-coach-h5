@@ -187,11 +187,11 @@ function sendMessage() {
   generateSection.style.display = 'none';
   scrollToBottom();
 
-  // 构建 chat messages（限300tokens，确保3s内返回）
+  // 构建 chat messages（只发最近4条确保速度）
   var chatMessages = buildChatMessages(currentPhase, messages);
   var turnCount = messages.filter(function(m) { return m.role === 'user'; }).length;
 
-  callChatAPI(chatMessages, 300).then(function(data) {
+  callChatAPI(chatMessages).then(function(data) {
     thinkingRow.style.display = 'none';
 
     // 解析阶段转换
@@ -222,16 +222,12 @@ function sendMessage() {
     renderGenerateBtn();
     scrollToBottom();
 
-    // 自动跳转预览
-    if (nextPhase === 'generate') {
-      generateSection.style.display = 'none';
-      setTimeout(function() { navigateToPreview(); }, 300);
-    }
   }).catch(function(err) {
     thinkingRow.style.display = 'none';
     loading = false;
+    sendBtn.disabled = false;
     renderGenerateBtn();
-    App.showToast('发送失败，请稍后再试', 'error');
+    App.showToast('发送失败: ' + (err.message || ''), 'error');
   });
 }
 
@@ -241,47 +237,54 @@ document.getElementById('generateBtn').addEventListener('click', generateScript)
 function generateScript() {
   if (loading) return;
   loading = true;
+  sendBtn.disabled = true;
   generateSection.style.display = 'none';
   thinkingRow.style.display = 'flex';
   scrollToBottom();
 
-  // 用精简版 prompt + 小 token 数，确保 CloudBase 3s 超时内返回
-  var genMessages = buildGenerateMessagesCompact(messages);
+  try {
+    var genMessages = buildGenerateMessagesCompact(messages);
 
-  callChatAPI(genMessages, 250).then(function(data) {
+    callChatAPI(genMessages).then(function(data) {
+      thinkingRow.style.display = 'none';
+      var content = data.content;
+      if (!content) { throw new Error('API返回空内容'); }
+
+      saveMessage(dialogueId, { role: 'assistant', content: content, phase: 'generate' });
+      updateDialogue(dialogueId, { phase: 'generate' });
+      currentPhase = 'generate';
+      renderPhaseIndicator();
+      renderGenerateBtn();
+
+      var genHtml = '<div class="bubble-wrapper ai"><div class="bubble-avatar">✨</div>';
+      genHtml += '<div class="bubble bubble-ai script-bubble">' + escapeHtml(content) + '</div></div>';
+      genHtml += '<div class="script-inline-actions">';
+      genHtml += '<button class="btn-outline" onclick="copyGenerated()">📋 复制文案</button>';
+      genHtml += '<button class="btn-primary" onclick="saveGenerated()">💾 保存到文案库</button>';
+      genHtml += '</div>';
+      messageContainer.insertAdjacentHTML('beforeend', genHtml);
+
+      window._generatedScript = content;
+      window._genDialogueId = dialogueId;
+      messages.push({ role: 'assistant', content: content, phase: 'generate' });
+      loading = false;
+      sendBtn.disabled = false;
+      scrollToBottom();
+    }).catch(function(err) {
+      thinkingRow.style.display = 'none';
+      loading = false;
+      sendBtn.disabled = false;
+      generateSection.style.display = 'flex';
+      App.showToast('生成失败: ' + (err.message || ''), 'error');
+    });
+  } catch(e) {
     thinkingRow.style.display = 'none';
-    var content = data.content;
-    if (!content) { throw new Error('API 返回空内容'); }
-
-    // 保存为 generate 阶段消息
-    saveMessage(dialogueId, { role: 'assistant', content: content, phase: 'generate' });
-    updateDialogue(dialogueId, { phase: 'generate' });
-    currentPhase = 'generate';
-    renderPhaseIndicator();
-    renderGenerateBtn();
-
-    // 把生成结果追加到聊天列表显示
-    var genHtml = '<div class="bubble-wrapper ai"><div class="bubble-avatar">✨</div>';
-    genHtml += '<div class="bubble bubble-ai script-bubble">' + escapeHtml(content) + '</div></div>';
-    genHtml += '<div class="script-inline-actions">';
-    genHtml += '<button class="btn-outline" onclick="copyGenerated()">📋 复制文案</button>';
-    genHtml += '<button class="btn-primary" onclick="saveGenerated()">💾 保存到文案库</button>';
-    genHtml += '</div>';
-    messageContainer.insertAdjacentHTML('beforeend', genHtml);
-
-    // 存储当前生成的文案便于复制/保存
-    window._generatedScript = content;
-    window._genDialogueId = dialogueId;
-
-    messages.push({ role: 'assistant', content: content, phase: 'generate' });
     loading = false;
-    scrollToBottom();
-  }).catch(function(err) {
-    thinkingRow.style.display = 'none';
-    loading = false;
+    sendBtn.disabled = false;
     generateSection.style.display = 'flex';
-    App.showToast('生成失败: ' + (err.message || '请稍后重试'), 'error');
-  });
+    App.showToast('生成异常: ' + e.message, 'error');
+  }
+}
 }
 
 // 复制生成的文案

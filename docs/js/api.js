@@ -6,36 +6,26 @@
 // CloudBase HTTP 触发器地址
 var API_BASE = 'https://cloudbase-d1gdu6ytq7d7d768b-1439505511.ap-shanghai.app.tcloudbase.com/api';
 
-async function callChatAPI(messages, maxTokens) {
+async function callChatAPI(messages) {
   var body = { action: 'chat', messages: messages };
-  if (maxTokens) body.maxTokens = maxTokens;
-
-  // 客户端 50 秒超时，给出明确错误提示
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function() { controller.abort(); }, 50000);
-
-  try {
-    var res = await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error('服务器错误 ' + res.status);
-    var data = await res.json();
-    if (data.error) throw new Error(data.error);
-    return data;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') throw new Error('请求超时，文案生成较耗时，请重试');
-    throw err;
+  // 不设 maxTokens，让云函数用默认的 2000
+  var res = await fetch(API_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  var data = await res.json();
+  // CloudBase 超时返回 {code: "FUNCTION_TIME_LIMIT_EXCEEDED", ...}
+  if (data.code === 'FUNCTION_TIME_LIMIT_EXCEEDED') {
+    throw new Error('云函数超时(3秒限制)，请增加CloudBase控制台超时设置');
   }
+  if (data.error) throw new Error(data.error);
+  if (!data.content) throw new Error('API返回空: ' + JSON.stringify(data).substring(0, 80));
+  return data;
 }
 
 async function callGenerateAPI(messages) {
-  // 限制 token 数，确保 15 秒内返回（CloudBase 网关超时限制）
-  return callChatAPI(messages, 800);
+  return callChatAPI(messages);
 }
 
 // ---- localStorage 数据管理 ----
