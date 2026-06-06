@@ -4,16 +4,17 @@
 
 const App = {
   // 跨页面传参（替代小程序的 getApp().globalData）
-  params: {},
+  // 用 sessionStorage 确保页面跳转后数据不丢
 
   setParam(key, value) {
-    this.params[key] = value;
+    sessionStorage.setItem('_app_' + key, JSON.stringify(value));
   },
 
   getParam(key) {
-    const val = this.params[key];
-    this.params[key] = null; // 取后即焚
-    return val;
+    var raw = sessionStorage.getItem('_app_' + key);
+    sessionStorage.removeItem('_app_' + key); // 取后即焚
+    if (raw === null || raw === undefined) return null;
+    try { return JSON.parse(raw); } catch(e) { return raw; }
   },
 
   // Toast 提示（替代 wx.showToast）
