@@ -18,6 +18,11 @@
   .msg-input { width: 100%; font-size: 14px; line-height: 1.5; border: none; outline: none; background: transparent; font-family: inherit; }
   .send-btn { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-light)); display: flex; align-items: center; justify-content: center; padding: 0; border: none; color: #fff; font-size: 18px; font-weight: 700; flex-shrink: 0; cursor: pointer; }
   .send-btn:disabled { background: #dfe6e9; cursor: not-allowed; }
+  /* 生成文案内联样式 */
+  .script-bubble { max-width: 90% !important; font-size: 14px !important; line-height: 1.8 !important; }
+  .script-inline-actions { display: flex; gap: 8px; padding: 0 48px 16px; justify-content: center; }
+  .script-inline-actions .btn-outline { font-size: 13px; padding: 8px 20px; }
+  .script-inline-actions .btn-primary { font-size: 13px; padding: 8px 20px; }
   /* 空对话 */
   .empty-dialogue { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 32px; text-align: center; color: var(--text-muted); }
   .empty-dialogue .empty-icon { font-size: 48px; margin-bottom: 12px; }
@@ -231,12 +236,84 @@ function sendMessage() {
 }
 
 // ---- 生成文案 ----
-document.getElementById('generateBtn').addEventListener('click', navigateToPreview);
+document.getElementById('generateBtn').addEventListener('click', generateScript);
 
-function navigateToPreview() {
-  App.setParam('dialogueId', dialogueId);
-  App.setParam('messages', messages);
-  window.location.href = 'preview.html';
+function generateScript() {
+  if (loading) return;
+  loading = true;
+  generateSection.style.display = 'none';
+  thinkingRow.style.display = 'flex';
+  scrollToBottom();
+
+  var genMessages = buildGenerateMessages(messages);
+
+  callChatAPI(genMessages).then(function(data) {
+    thinkingRow.style.display = 'none';
+    var content = data.content;
+    if (!content) { throw new Error('API 返回空内容'); }
+
+    // 保存为 generate 阶段消息
+    saveMessage(dialogueId, { role: 'assistant', content: content, phase: 'generate' });
+    updateDialogue(dialogueId, { phase: 'generate' });
+    currentPhase = 'generate';
+    renderPhaseIndicator();
+    renderGenerateBtn();
+
+    // 把生成结果追加到聊天列表显示
+    var genHtml = '<div class="bubble-wrapper ai"><div class="bubble-avatar">✨</div>';
+    genHtml += '<div class="bubble bubble-ai script-bubble">' + escapeHtml(content) + '</div></div>';
+    genHtml += '<div class="script-inline-actions">';
+    genHtml += '<button class="btn-outline" onclick="copyGenerated()">📋 复制文案</button>';
+    genHtml += '<button class="btn-primary" onclick="saveGenerated()">💾 保存到文案库</button>';
+    genHtml += '</div>';
+    messageContainer.insertAdjacentHTML('beforeend', genHtml);
+
+    // 存储当前生成的文案便于复制/保存
+    window._generatedScript = content;
+    window._genDialogueId = dialogueId;
+
+    messages.push({ role: 'assistant', content: content, phase: 'generate' });
+    loading = false;
+    scrollToBottom();
+  }).catch(function(err) {
+    thinkingRow.style.display = 'none';
+    loading = false;
+    generateSection.style.display = 'flex';
+    App.showToast('生成失败: ' + (err.message || '请稍后重试'), 'error');
+  });
+}
+
+// 复制生成的文案
+function copyGenerated() {
+  var content = window._generatedScript || '';
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(content).then(function() {
+      App.showToast('已复制', 'success');
+    }).catch(function() { fallbackCopyGenerated(); });
+  } else {
+    fallbackCopyGenerated();
+  }
+}
+
+function fallbackCopyGenerated() {
+  var ta = document.createElement('textarea');
+  ta.value = window._generatedScript || '';
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); App.showToast('已复制', 'success'); } catch(e) { App.showToast('复制失败', 'error'); }
+  document.body.removeChild(ta);
+}
+
+// 保存到文案库
+function saveGenerated() {
+  if (!window._generatedScript) return;
+  var content = window._generatedScript;
+  var title = content.split('\n')[0] ? content.split('\n')[0].replace(/🎣|📖|🎯|🏷️|📝|【.*?】/g, '').trim().substring(0, 50) : '未命名文案';
+  var match = content.match(/#[^\s#]+/g);
+  var hashtags = match || [];
+  saveScriptLocal({ title: title, content: content, hashtags: hashtags, dialogueId: window._genDialogueId });
+  App.showToast('已保存到文案库', 'success');
 }
 
 // ---- 初始滚动 ----
