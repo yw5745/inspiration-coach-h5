@@ -158,3 +158,18 @@ function buildGenerateMessages(messageHistory) {
     { role: 'user', content: '以下是我们的对话历史，请基于此生成一条完整的短视频文案：\n\n' + dialogueHistory }
   ];
 }
+
+// 精简版：只用最后几轮对话 + 短系统提示，确保 CloudBase 3s 超时内返回
+function buildGenerateMessagesCompact(messageHistory) {
+  var M = messageHistory;
+  // 只取最后 6 条消息（3轮对话）
+  var recent = M.length > 6 ? M.slice(M.length - 6) : M;
+  var history = recent.map(function(m) {
+    return (m.role === 'user' ? '我' : '教练') + ': ' + (m.content || '').substring(0, 80);
+  }).join('\n');
+
+  return [
+    { role: 'system', content: '你是短视频教练。基于对话写一条200-300字口播文案。格式：🎣开头钩子\n📖正文\n🎯结尾\n🏷️标签\n📝笔记' },
+    { role: 'user', content: '对话摘要:\n' + history + '\n\n请生成文案' }
+  ];
+}

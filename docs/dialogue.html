@@ -245,10 +245,10 @@ function generateScript() {
   thinkingRow.style.display = 'flex';
   scrollToBottom();
 
-  var genMessages = buildGenerateMessages(messages);
+  // 用精简版 prompt + 小 token 数，确保 CloudBase 3s 超时内返回
+  var genMessages = buildGenerateMessagesCompact(messages);
 
-  // maxTokens=800 确保 ~15s 内返回（DeepSeek约50t/s + CloudBase网关限制），800t≈600汉字，够一条短视频口播
-  callChatAPI(genMessages, 800).then(function(data) {
+  callChatAPI(genMessages, 250).then(function(data) {
     thinkingRow.style.display = 'none';
     var content = data.content;
     if (!content) { throw new Error('API 返回空内容'); }

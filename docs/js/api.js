@@ -4,7 +4,6 @@
 // ============================================================
 
 // CloudBase HTTP 触发器地址
-// 格式: https://<环境ID>.service.tcloudbase.com/<函数名>
 var API_BASE = 'https://cloudbase-d1gdu6ytq7d7d768b-1439505511.ap-shanghai.app.tcloudbase.com/api';
 
 async function callChatAPI(messages, maxTokens) {
