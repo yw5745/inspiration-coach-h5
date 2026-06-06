@@ -8,6 +8,7 @@
     "dev": "node server.js"
   },
   "dependencies": {
+    "@cloudbase/js-sdk": "^1.7.0",
     "express": "^4.18.2"
   },
   "keywords": [
@@ -19,7 +20,6 @@
   "directories": {
     "doc": "docs"
   },
-  "devDependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yw5745/inspiration-coach-h5.git"
