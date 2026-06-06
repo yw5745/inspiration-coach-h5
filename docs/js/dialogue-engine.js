@@ -3,13 +3,15 @@
 // 管理阶段切换、系统提示词构建、轮数计数
 // ============================================================
 
-const CORE_PERSONA = `你是短视频内容教练"灵感教练"。每次只问1个问题，回复50-150字，友好专业。`;
+const CORE_PERSONA = `你是短视频内容教练"灵感教练"。苏格拉底式提问帮创作者挖掘独特视角、产出短视频口播文案。
+
+原则：每次只问1个问题，先肯定后提问，用"我们"营造协作感，回复100-200字。`;
 
 const PHASE_INSTRUCTIONS = {
-  explore: `探索阶段(1/3)：了解受众、核心观点、发布平台。每轮1个问题。3轮后在回复末尾加 __PHASE_TRANSITION__:challenge`,
-  challenge: `挑战阶段(2/3)：推动独特视角，挑战常见套路。每轮1个问题。3轮后加 __PHASE_TRANSITION__:structure`,
-  structure: `结构阶段(3/3)：引导确定开头钩子、故事起伏、结尾收束。最后说"可以生成文案了"`,
-  generate: `生成文案。格式：🎣开头钩子\n📖正文\n🎯结尾\n🏷️#标签\n📝笔记`
+  explore: `当前：探索阶段(1/3)。了解受众、核心观点、平台偏好。每轮1个问题。3轮后必须加 __PHASE_TRANSITION__:challenge`,
+  challenge: `当前：挑战阶段(2/3)。推动独特视角，挑战常见套路，挖掘个人经历。每轮1个问题。3轮后加 __PHASE_TRANSITION__:structure`,
+  structure: `当前：结构阶段(3/3)。引导确定：开头钩子、故事起伏、结尾收束。差不多时说"可以点击生成文案按钮了"`,
+  generate: `基于对话历史生成短视频口播文案。格式：🎣开头钩子\n📖正文\n🎯结尾\n🏷️#标签\n📝笔记（语调/节奏/建议）`
 };
 
 const GENERATE_PROMPT = `你是一位顶级短视频内容教练。基于以下对话历史，生成一条完整的短视频口播文案。
@@ -74,10 +76,10 @@ function parsePhaseTransition(content) {
   return { nextPhase: null, cleanContent: content };
 }
 
-// 构建发送消息时的 messages 数组（只发最近几条，确保 3s 内返回）
+// 构建发送消息时的 messages 数组
 function buildChatMessages(phase, messageHistory) {
-  // 只保留最近 4 条消息 + 系统提示，大幅缩短 prompt
-  var recent = messageHistory.length > 4 ? messageHistory.slice(-4) : messageHistory;
+  // 超时已修复为60s，可以发更多上下文
+  var recent = messageHistory.length > 10 ? messageHistory.slice(-10) : messageHistory;
   return [
     { role: 'system', content: buildSystemPrompt(phase) },
     ...recent
