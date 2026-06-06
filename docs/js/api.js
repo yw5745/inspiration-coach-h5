@@ -1,31 +1,32 @@
 // ============================================================
-// API 层：CloudBase SDK 直连云函数 + localStorage 数据管理
-// 需要页面先加载：<script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.0/cloudbase.full.js"></script>
+// API 层：HTTP 直连云函数（绕过 CloudBase SDK 的 CORS 限制）
+// 云函数 api 已配置 HTTP 触发器 + CORS 头
 // ============================================================
 
-var cbApp = cloudbase.init({ env: 'cloudbase-d1gdu6ytq7d7d768b' });
-var cbAuthed = false;
-
-async function ensureAuth() {
-  if (cbAuthed) return;
-  await cbApp.auth({ persistence: 'local' }).anonymousAuthProvider().signIn();
-  cbAuthed = true;
-}
-
-// ---- CloudBase SDK 调用 ----
+// CloudBase HTTP 触发器地址
+// 格式: https://<环境ID>.service.tcloudbase.com/<函数名>
+var API_BASE = 'https://cloudbase-d1gdu6ytq7d7d768b.service.tcloudbase.com/api';
 
 async function callChatAPI(messages) {
-  await ensureAuth();
-  var res = await cbApp.callFunction({ name: 'api', data: { action: 'chat', messages: messages } });
-  if (res.result && res.result.error) throw new Error(res.result.error);
-  return res.result;
+  var res = await fetch(API_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'chat', messages: messages })
+  });
+  var data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
 }
 
 async function callGenerateAPI(messages) {
-  await ensureAuth();
-  var res = await cbApp.callFunction({ name: 'api', data: { action: 'generate', messages: messages } });
-  if (res.result && res.result.error) throw new Error(res.result.error);
-  return res.result;
+  var res = await fetch(API_BASE + '/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: messages })
+  });
+  var data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
 }
 
 // ---- localStorage 数据管理 ----
@@ -64,10 +65,12 @@ function getDialogue(id) {
   return getDialoguesMap()[id] || null;
 }
 
-function listDialogues(page = 1, limit = 20) {
+function listDialogues(page, limit) {
+  if (!page) page = 1;
+  if (!limit) limit = 20;
   const map = getDialoguesMap();
   const list = Object.values(map)
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    .sort(function(a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); })
     .slice((page - 1) * limit, page * limit);
   return { dialogues: list, total: Object.keys(map).length };
 }
@@ -123,10 +126,12 @@ function getScript(id) {
   return getScriptsMap()[id] || null;
 }
 
-function listScripts(page = 1, limit = 20) {
+function listScripts(page, limit) {
+  if (!page) page = 1;
+  if (!limit) limit = 20;
   const map = getScriptsMap();
   const list = Object.values(map)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); })
     .slice((page - 1) * limit, page * limit);
   return { scripts: list, total: Object.keys(map).length };
 }
